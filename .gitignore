@@ -1,0 +1,35 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# IDE and local Git metadata
+**/.idea/
+**/.vscode/
+*.iml
+.local-git-backup/
+
+# Build output and dependencies
+**/node_modules/
+**/dist/
+**/target/
+
+# Tests and local reports
+**/src/test/
+/docs/
+/开发日志.md
+/开发日志.docx
+/travelHelper_server/HELP.md
+/travelHelper_frontend/README.md
+
+# Machine-specific scripts and runtime data
+/scripts/
+/data/
+/travelHelper_server/data/
+
+# Logs and temporary files
+*.log
+*.pid
+*.tmp
+.DS_Store
+Thumbs.db

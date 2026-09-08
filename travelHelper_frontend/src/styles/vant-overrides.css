@@ -1,0 +1,21 @@
+:root {
+  --van-toast-background: rgba(32, 33, 36, 0.88);
+  --van-toast-text-color: #fff;
+}
+
+/*
+ * Toast is teleported under <body> and carries both van-popup and van-toast.
+ * Use a more specific global rule so the popup's white background cannot win
+ * during the enter transition and produce white text on a white panel.
+ */
+.van-toast.van-popup {
+  color: #fff;
+  background: rgba(32, 33, 36, 0.88);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  transition-property: opacity, transform;
+}
+
+.van-toast .van-toast__text {
+  color: inherit;
+  opacity: 1;
+}

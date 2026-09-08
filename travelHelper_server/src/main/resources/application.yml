@@ -1,0 +1,128 @@
+server:
+  port: 3080
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 100MB
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3307/travel_helper?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${MYSQL_USERNAME:travel}
+    password: ${MYSQL_PASSWORD:travel123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # MySQL 8 默认使用 caching_sha2_password。本地开发关闭 TLS 时，Connector/J
+    # 需要获取服务端 RSA 公钥。这里再配置一遍 Hikari 属性，避免 IDEA 或环境变量
+    # 中的旧 MYSQL_URL 覆盖上面的默认 URL 后丢失这些参数。
+    hikari:
+      data-source-properties:
+        allowPublicKeyRetrieval: true
+        useSSL: false
+        useUnicode: true
+        characterEncoding: utf8
+        serverTimezone: Asia/Shanghai
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Shanghai
+
+llm:
+  baseURL: ${ARK_BASE_URL:https://ark.cn-beijing.volces.com/api/v3}
+  model: ${ARK_CHAT_MODEL:doubao-seed-2-0-pro-260215}
+  api-key: ${ARK_API_KEY:}
+
+  # 当前接入点绑定 doubao-embedding-vision-250615，纯文本也必须走 multimodal API。
+  # 如果以后换成文本向量模型，将 ARK_EMBEDDING_API 改为 text。
+  embedding-baseURL: ${ARK_EMBEDDING_BASE_URL:${llm.baseURL}}
+  embedding-model: ${ARK_EMBEDDING_MODEL:ep-20260819154431-nbklt}
+  embedding-api: ${ARK_EMBEDDING_API:multimodal}
+  # 显式控制模型输出维度；消融实验可分别设置为1024和2048。
+  embedding-dimensions: ${ARK_EMBEDDING_DIMENSIONS:2048}
+  # 以下字段仅用于启动日志和运维核对，不参与Embedding请求或检索计算。
+  embedding-provider: ${ARK_EMBEDDING_PROVIDER:Volcengine Ark}
+  embedding-expected-model: ${ARK_EMBEDDING_EXPECTED_MODEL:doubao-embedding-vision-250615}
+  embedding-expected-dimensions: ${ARK_EMBEDDING_EXPECTED_DIMENSIONS:2048}
+
+qdrant:
+  base-url: http://localhost:6333
+  collection: ${QDRANT_COLLECTION:travel_poi}
+
+neo4j:
+  uri: bolt://localhost:7687
+  username: neo4j
+  password: ${NEO4J_PASSWORD:travel123456}
+
+realtime:
+  open-meteo:
+    enabled: true
+    geocoding-url: https://geocoding-api.open-meteo.com/v1/search
+    forecast-url: https://api.open-meteo.com/v1/forecast
+    air-quality-url: https://air-quality-api.open-meteo.com/v1/air-quality
+    timeout-ms: 10000
+
+
+data:
+  ingest:
+    enabled: true
+    refresh-vectors: ${DATA_INGEST_REFRESH_VECTORS:false}
+    file: classpath:data/poi_seed.json
+
+rag:
+  top-k: 5
+  candidate-k: 15
+  context-min: 3
+  context-max: 5
+  min-score: 0.35
+  rerank:
+    enabled: true
+    timeout-ms: 6000
+  query-rewrite:
+    enabled: true
+    timeout-ms: 6000
+  bm25:
+    enabled: true
+    cache-ttl-ms: 30000
+    k1: 1.2
+    b: 0.75
+  fusion:
+    # 仅作为未命中特定路线时的默认值；推荐/规划/事实查询由Java按约束强度动态选路和赋权。
+    vector-weight: ${RAG_FUSION_VECTOR_WEIGHT:1.0}
+    bm25-weight: ${RAG_FUSION_BM25_WEIGHT:0.05}
+    rewrite-weight: ${RAG_FUSION_REWRITE_WEIGHT:0.01}
+    # 40题选策+12题保留验证：抽象推荐优先向量；向量失败时使用有效词BM25兜底。
+    abstract-vector-weight: ${RAG_ABSTRACT_VECTOR_WEIGHT:1.0}
+    abstract-bm25-weight: ${RAG_ABSTRACT_BM25_WEIGHT:0.0}
+    abstract-effective-terms: ${RAG_ABSTRACT_EFFECTIVE_TERMS:true}
+intent:
+  classifier:
+    enabled: true
+    timeout-ms: 5000
+    min-confidence: 0.55
+
+knowledge:
+  ingestion:
+    storage-dir: ${KNOWLEDGE_STORAGE_DIR:./data/knowledge-files}
+    max-bytes: 20971520
+    # 父块供LLM读取完整章节，小块负责向量/BM25精确召回。
+    parent-chunk-size: 1800
+    child-chunk-size: 450
+    child-chunk-overlap: 80
+    min-child-chunk-size: 80
+  sources:
+    enabled: ${KNOWLEDGE_SOURCE_SYNC_ENABLED:true}
+    bootstrap-changsha: ${KNOWLEDGE_SOURCE_BOOTSTRAP_CHANGSHA:true}
+    # 每分钟只扫描到期任务，每批最多处理2个；真正刷新周期由每个来源的策略决定。
+    initial-delay-ms: 30000
+    scan-interval-ms: 60000

@@ -1,0 +1,49 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: travel_mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: travel_helper
+      MYSQL_USER: travel
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-travel123456}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      TZ: Asia/Shanghai
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.0
+    container_name: travel_qdrant
+    ports:
+      - "6333:6333" # REST API（后端用这个）
+      - "6334:6334" # gRPC（备用，本项目走 REST 不用）
+    volumes:
+      # Windows bind mount 曾出现重启后 payload 保留而向量段回退为零；命名卷由Docker管理持久化。
+      - travel_qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5.26
+    container_name: travel_neo4j
+    ports:
+      - "7474:7474" # HTTP / Browser
+      - "7687:7687" # Bolt（后端用这个）
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-travel123456}
+    volumes:
+      - ./data/neo4j:/data
+      - ./data/neo4j_logs:/logs
+    restart: unless-stopped
+
+volumes:
+  travel_qdrant_data:
+    name: travel_qdrant_data
