@@ -52,11 +52,11 @@ docker-compose.yml       MySQL、Qdrant、Neo4j 本地依赖
 
 ## 界面展示
 
-<!-- 上传截图后，将下面的文件名替换为实际路径并取消注释。 -->
-
-<!-- ![对话与检索过程](screenshots/chat.png) -->
-<!-- ![知识来源管理](screenshots/knowledge-sources.png) -->
-<!-- ![多会话管理](screenshots/conversations.png) -->
+![登录页面](screenshots/register.png)
+![首页管理](screenshots/firstpage.png)
+![聊天管理](screenshots/chat.png)
+![多会话管理](screenshots/session.png)
+![知识管理](screenshots/kownledge.png)
 
 ## 配置说明
 
