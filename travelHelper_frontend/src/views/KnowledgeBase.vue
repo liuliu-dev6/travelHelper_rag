@@ -5,7 +5,10 @@
     <section class="hero">
       <van-icon name="cluster-o" size="30" color="#1989fa" />
       <div class="hero-main"><b>多格式文档自动入库</b><p>结构解析、父子分块，小块召回后展开完整上下文。</p></div>
-      <van-button size="small" plain type="primary" @click="router.push('/knowledge/sources')">可信订阅</van-button>
+      <div class="hero-actions">
+        <van-button size="small" plain type="warning" @click="router.push('/knowledge/reviews')">人工审核</van-button>
+        <van-button size="small" plain type="primary" @click="router.push('/knowledge/sources')">可信订阅</van-button>
+      </div>
     </section>
 
     <section class="card">
@@ -34,7 +37,7 @@
           </van-form>
         </van-tab>
       </van-tabs>
-      <p class="tip">城市可选，但城市类问答建议填写，以便检索时准确过滤。相同内容会按校验和自动去重。疑似乱码、扫描件或复杂版面的原文件会保留，但不会生成向量或进入检索库。</p>
+      <p class="tip">高质量文档自动入库；疑似乱码、扫描件或复杂版面会进入人工审核区，批准前不会生成向量。图谱关系候选始终需要人工审核后才会写入 Neo4j。</p>
     </section>
 
     <section class="list-card">
@@ -113,11 +116,12 @@ const remove = async (item: KnowledgeDocument) => {
   try { await showConfirmDialog({ title:'删除知识文档', message:'将同时删除该文档的全部向量分块，确定继续吗？' }); await deleteKnowledgeDocument(item.id); showToast('已删除'); await load() }
   catch (e) { if (e instanceof Error && e.message) showToast(e.message) }
 }
-const statusText = (value:string) => ({ PROCESSING:'处理中', PARSE_REVIEW:'待解析复核', INDEXED:'已入库', FAILED:'失败' } as any)[value] || value
+const statusText = (value:string) => ({ PROCESSING:'处理中', REVIEW_REQUIRED:'待人工审核', PARSE_REVIEW:'待人工审核', REJECTED:'已拒绝', INDEXED:'已入库', FAILED:'失败' } as any)[value] || value
 const statusType = (value:string) => value === 'INDEXED' ? 'success' : value === 'FAILED' ? 'danger' : 'warning'
 onMounted(load)
 </script>
 
 <style scoped>
 .page{min-height:100vh;background:#f7f8fa;padding-bottom:30px;text-align:left}.hero,.card,.list-card{margin:12px;padding:16px;border-radius:14px;background:#fff}.hero{display:flex;gap:12px;align-items:flex-start}.hero-main{min-width:0;flex:1}.hero b{font-size:18px}.hero p,.tip{margin:5px 0 0;color:#969799;font-size:12px;line-height:1.6}.form{display:flex;flex-direction:column;gap:12px;padding-top:16px}.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.document{display:flex;gap:11px;padding:14px 4px;border-top:1px solid #f2f3f5}.document-main{display:flex;min-width:0;flex:1;flex-direction:column;gap:5px}.document-main>div{display:flex;align-items:center;gap:7px}.document-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.document-main small{color:#969799}.document-main .error{color:#ee0a24}.delete{height:100%}
+.hero-actions{display:flex;flex-direction:column;gap:7px;flex:none}
 </style>

@@ -9,10 +9,12 @@ export interface KnowledgeDocument {
   mimeType?: string
   city?: string
   knowledgeType?: string
-  status: 'PROCESSING' | 'PARSE_REVIEW' | 'INDEXED' | 'FAILED'
+  status: 'PROCESSING' | 'REVIEW_REQUIRED' | 'REJECTED' | 'PARSE_REVIEW' | 'INDEXED' | 'FAILED'
   characterCount: number
   chunkCount: number
   errorMessage?: string
+  reviewedBy?: string
+  reviewedAt?: string
   createdAt: string
   indexedAt?: string
 }
@@ -46,6 +48,30 @@ export interface KnowledgeRefreshResult {
   source: KnowledgeSource
 }
 
+export interface GraphCandidateEntity {
+  id: string
+  type: 'POI' | 'CITY' | 'FOOD' | 'THEME' | 'AREA' | 'EXHIBITION' | 'STATION'
+  name: string
+  city?: string
+  confidence: number
+  status: 'PENDING' | 'CONFLICT' | 'PUBLISHING' | 'PUBLISHED' | 'REJECTED' | 'FAILED'
+  issues?: string
+  alignedEntityId?: string
+}
+
+export interface GraphRelationCandidate {
+  id: string
+  documentId: string
+  relationType: 'LOCATED_IN' | 'HAS_THEME' | 'NEARBY' | 'HAS_FOOD' | 'SUITABLE_FOR' | 'HAS_EXHIBITION'
+  confidence: number
+  evidence: string
+  status: 'PENDING' | 'CONFLICT' | 'PUBLISHING' | 'PUBLISHED' | 'REJECTED' | 'FAILED'
+  issues?: string
+  source: GraphCandidateEntity
+  target: GraphCandidateEntity
+  createdAt: string
+}
+
 export const listKnowledgeDocuments = () =>
   request.get<any, ApiResult<KnowledgeDocument[]>>('/api/knowledge/documents')
 
@@ -75,3 +101,22 @@ export const updateKnowledgeSource = (id: string, enabled: boolean, refreshPolic
 export const refreshKnowledgeSource = (id: string) =>
   request.post<any, ApiResult<KnowledgeRefreshResult>>(`/api/knowledge/sources/${id}/refresh`, {},
     { timeout: 600000 })
+
+export const listReviewDocuments = () =>
+  request.get<any, ApiResult<KnowledgeDocument[]>>('/api/knowledge/reviews/documents')
+
+export const approveReviewDocument = (id: string) =>
+  request.post<any, ApiResult<KnowledgeDocument>>(`/api/knowledge/reviews/documents/${id}/approve`, {},
+    { timeout: 600000 })
+
+export const rejectReviewDocument = (id: string, reason = '') =>
+  request.post<any, ApiResult<KnowledgeDocument>>(`/api/knowledge/reviews/documents/${id}/reject`, { reason })
+
+export const listGraphRelationCandidates = () =>
+  request.get<any, ApiResult<GraphRelationCandidate[]>>('/api/knowledge/reviews/relations')
+
+export const approveGraphRelation = (id: string) =>
+  request.post<any, ApiResult<GraphRelationCandidate>>(`/api/knowledge/reviews/relations/${id}/approve`, {})
+
+export const rejectGraphRelation = (id: string, reason = '') =>
+  request.post<any, ApiResult<void>>(`/api/knowledge/reviews/relations/${id}/reject`, { reason })

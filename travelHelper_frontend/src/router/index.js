@@ -9,6 +9,7 @@ import History from '../views/History.vue'
 import Settings from '../views/Settings.vue'
 import KnowledgeBase from '../views/KnowledgeBase.vue'
 import KnowledgeSources from '../views/KnowledgeSources.vue'
+import KnowledgeReviews from '../views/KnowledgeReviews.vue'
 import pinia from '../stores'
 import { useAuthStore } from '../stores/auth'
 
@@ -24,6 +25,7 @@ const routes = [
   { path: '/settings', name: 'Settings', component: Settings, meta: { requiresAuth: true, hideTabbar: true } },
   { path: '/knowledge', name: 'KnowledgeBase', component: KnowledgeBase, meta: { requiresAuth: true, hideTabbar: true } },
   { path: '/knowledge/sources', name: 'KnowledgeSources', component: KnowledgeSources, meta: { requiresAuth: true, hideTabbar: true } },
+  { path: '/knowledge/reviews', name: 'KnowledgeReviews', component: KnowledgeReviews, meta: { requiresAuth: true, hideTabbar: true } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })
