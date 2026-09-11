@@ -6,8 +6,10 @@ public class DocumentQualityException extends IllegalArgumentException {
 
     public DocumentQualityException(KnowledgeDocumentStatus status, String message) {
         super(message);
-        if (status != KnowledgeDocumentStatus.PARSE_REVIEW && status != KnowledgeDocumentStatus.FAILED) {
-            throw new IllegalArgumentException("文档质量异常状态只能是PARSE_REVIEW或FAILED");
+        if (status != KnowledgeDocumentStatus.REVIEW_REQUIRED
+                && status != KnowledgeDocumentStatus.PARSE_REVIEW
+                && status != KnowledgeDocumentStatus.FAILED) {
+            throw new IllegalArgumentException("文档质量异常状态必须是待审核或失败");
         }
         this.status = status;
     }

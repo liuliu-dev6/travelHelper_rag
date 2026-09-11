@@ -62,6 +62,12 @@ public class KnowledgeDocument {
     @Column(name = "error_message", length = 1000)
     private String errorMessage;
 
+    @Column(name = "reviewed_by", length = 80)
+    private String reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -1,6 +1,7 @@
 package com.example.travelhelper_server.ingestion;
 
 import com.example.travelhelper_server.client.EmbeddingClient;
+import com.example.travelhelper_server.extraction.GraphExtractionService;
 import com.example.travelhelper_server.entity.KnowledgeChunk;
 import com.example.travelhelper_server.entity.KnowledgeDocument;
 import com.example.travelhelper_server.entity.KnowledgeParentChunk;
@@ -18,6 +19,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -50,6 +52,7 @@ public class KnowledgeIngestionService {
     private final EmbeddingClient embeddingClient;
     private final QdrantClient qdrantClient;
     private final Bm25SearchService bm25SearchService;
+    private final GraphExtractionService graphExtractionService;
     private final Path storageDir;
     private final int maxBytes;
     private final OkHttpClient webClient;
@@ -64,6 +67,7 @@ public class KnowledgeIngestionService {
                                      EmbeddingClient embeddingClient,
                                      QdrantClient qdrantClient,
                                      Bm25SearchService bm25SearchService,
+                                     GraphExtractionService graphExtractionService,
                                      @Value("${knowledge.ingestion.storage-dir:./data/knowledge-files}") String storageDir,
                                      @Value("${knowledge.ingestion.max-bytes:20971520}") int maxBytes) {
         this.documentRepository = documentRepository;
@@ -76,6 +80,7 @@ public class KnowledgeIngestionService {
         this.embeddingClient = embeddingClient;
         this.qdrantClient = qdrantClient;
         this.bm25SearchService = bm25SearchService;
+        this.graphExtractionService = graphExtractionService;
         this.storageDir = Path.of(storageDir).toAbsolutePath().normalize();
         this.maxBytes = maxBytes;
         this.webClient = new OkHttpClient.Builder()
@@ -226,10 +231,51 @@ public class KnowledgeIngestionService {
                 .map(KnowledgeDocumentVO::from).toList();
     }
 
+    public List<KnowledgeDocumentVO> listReviewRequired() {
+        return documentRepository.findTop100ByStatusInOrderByCreatedAtDesc(List.of(
+                        KnowledgeDocumentStatus.REVIEW_REQUIRED, KnowledgeDocumentStatus.PARSE_REVIEW))
+                .stream().map(KnowledgeDocumentVO::from).toList();
+    }
+
+    public KnowledgeDocumentVO approveReview(String documentId, String reviewer) throws Exception {
+        KnowledgeDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NoSuchElementException("知识文档不存在"));
+        if (document.getStatus() != KnowledgeDocumentStatus.REVIEW_REQUIRED
+                && document.getStatus() != KnowledgeDocumentStatus.PARSE_REVIEW) {
+            throw new IllegalStateException("当前文档不处于待审核状态");
+        }
+        Path path = Path.of(document.getStoredPath()).toAbsolutePath().normalize();
+        if (!path.startsWith(storageDir) || !Files.isRegularFile(path)) {
+            throw new IllegalStateException("待审核原文件不存在或路径非法");
+        }
+        document.setReviewedBy(reviewer);
+        document.setReviewedAt(LocalDateTime.now());
+        document.setStatus(KnowledgeDocumentStatus.PROCESSING);
+        documentRepository.save(document);
+        return indexExisting(document, Files.readAllBytes(path), fileName(document.getSourceUri(), "document.txt"),
+                document.getMimeType(), true);
+    }
+
+    public KnowledgeDocumentVO rejectReview(String documentId, String reviewer, String reason) {
+        KnowledgeDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NoSuchElementException("知识文档不存在"));
+        if (document.getStatus() != KnowledgeDocumentStatus.REVIEW_REQUIRED
+                && document.getStatus() != KnowledgeDocumentStatus.PARSE_REVIEW) {
+            throw new IllegalStateException("当前文档不处于待审核状态");
+        }
+        document.setStatus(KnowledgeDocumentStatus.REJECTED);
+        document.setReviewedBy(reviewer);
+        document.setReviewedAt(LocalDateTime.now());
+        document.setErrorMessage("人工审核拒绝：" + (hasText(reason) ? reason.strip() : "未填写原因"));
+        return KnowledgeDocumentVO.from(documentRepository.save(document));
+    }
+
+    @Transactional
     public void delete(String documentId) throws Exception {
         deleteInternal(documentId, false);
     }
 
+    @Transactional
     public void deleteSubscriptionVersion(String documentId) throws Exception {
         deleteInternal(documentId, true);
     }
@@ -243,6 +289,7 @@ public class KnowledgeIngestionService {
         List<String> pointIds = chunkRepository.findAllByDocumentIdOrderByChunkIndex(documentId).stream()
                 .map(KnowledgeChunk::getQdrantPointId).toList();
         qdrantClient.deletePoints(pointIds);
+        graphExtractionService.deleteCandidates(documentId);
         chunkRepository.deleteAllByDocumentId(documentId);
         parentChunkRepository.deleteAllByDocumentId(documentId);
         documentRepository.delete(document);
@@ -276,14 +323,27 @@ public class KnowledgeIngestionService {
         document.setStatus(KnowledgeDocumentStatus.PROCESSING);
         documentRepository.save(document);
 
+        return indexExisting(document, bytes, fileName, declaredMime, false);
+    }
+
+    private KnowledgeDocumentVO indexExisting(KnowledgeDocument document, byte[] bytes, String fileName,
+                                               String declaredMime, boolean qualityOverride) throws Exception {
+        String sourceUri = document.getSourceUri();
+        String sourceId = document.getSourceId();
+        String requestedTitle = document.getTitle();
+
         List<String> pointIds = new ArrayList<>();
         try {
             DocumentParserService.ParsedDocument parsed = parser.parse(bytes, fileName, declaredMime);
             document.setMimeType(parsed.mimeType());
             document.setCharacterCount(parsed.text() == null ? 0 : parsed.text().length());
-            qualityService.requireIndexable(parsed);
+            if (!qualityOverride) qualityService.requireIndexable(parsed);
             String text = cleaner.clean(parsed.text());
-            if (text.length() < 50) throw new IllegalArgumentException("文档清洗后有效文本不足50字");
+            if (text.isBlank()) throw new IllegalArgumentException("文档清洗后没有有效文本，无法审核发布");
+            if (text.length() < 50 && !qualityOverride) {
+                throw new DocumentQualityException(KnowledgeDocumentStatus.REVIEW_REQUIRED,
+                        "文档清洗后有效文本不足50字，已进入人工审核区");
+            }
             if (!hasText(document.getCity())) document.setCity(detectSingleCity(text));
             DocumentChunkingService.StructuredChunks structured = chunker.chunkStructured(text);
             if (structured.childCount() == 0) throw new IllegalArgumentException("文档未生成有效分块");
@@ -364,8 +424,15 @@ public class KnowledgeIngestionService {
             document.setChunkCount(pendingChildren.size());
             document.setStatus(KnowledgeDocumentStatus.INDEXED);
             document.setIndexedAt(LocalDateTime.now());
+            document.setErrorMessage(null);
             documentRepository.save(document);
             bm25SearchService.invalidate();
+            try {
+                graphExtractionService.extract(document, text);
+            } catch (Exception extractionError) {
+                document.setErrorMessage("文档已入库，图谱候选抽取失败：" + abbreviate(extractionError.getMessage()));
+                documentRepository.save(document);
+            }
             return KnowledgeDocumentVO.from(document);
         } catch (Exception error) {
             try { qdrantClient.deletePoints(pointIds); } catch (Exception ignored) {}

@@ -76,12 +76,11 @@ public class DocumentQualityService {
     public void requireIndexable(DocumentParserService.ParsedDocument document) {
         QualityReport report = inspect(document);
         if (report.decision() == Decision.PASS) return;
-        KnowledgeDocumentStatus status = report.decision() == Decision.FAILED
-                ? KnowledgeDocumentStatus.FAILED : KnowledgeDocumentStatus.PARSE_REVIEW;
-        String prefix = status == KnowledgeDocumentStatus.FAILED
+        KnowledgeDocumentStatus status = KnowledgeDocumentStatus.REVIEW_REQUIRED;
+        String prefix = report.decision() == Decision.FAILED
                 ? "文档疑似存在编码、字体映射或异常字符问题"
                 : "文档疑似存在编码、扫描件或版面阅读顺序问题";
-        throw new DocumentQualityException(status, prefix + "，有效文本质量未通过，已保留原文件并阻止进入知识库。原因："
+        throw new DocumentQualityException(status, prefix + "，已进入人工审核区，审核通过前不会进入知识库。原因："
                 + String.join("；", report.issues()));
     }
 

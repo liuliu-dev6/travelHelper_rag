@@ -51,11 +51,19 @@ docker-compose.yml       MySQL、Qdrant、Neo4j 本地依赖
 4. 在 `travelHelper_frontend` 下执行 `npm install` 和 `npm run dev`。
 
 ## 界面展示
-
+登录页面：
 ![登录页面](screenshots/register.png)
+
+首页管理：
 ![首页管理](screenshots/firstpage.png)
+
+聊天管理：
 ![聊天管理](screenshots/chat.png)
+
+多会话管理：
 ![多会话管理](screenshots/session.png)
+
+知识管理：
 ![知识管理](screenshots/kownledge.png)
 
 ## 配置说明

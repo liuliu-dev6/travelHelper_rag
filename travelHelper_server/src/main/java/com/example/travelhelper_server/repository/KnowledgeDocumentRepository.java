@@ -4,6 +4,7 @@ import com.example.travelhelper_server.entity.KnowledgeDocument;
 import com.example.travelhelper_server.ingestion.KnowledgeDocumentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,4 +12,5 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     List<KnowledgeDocument> findTop100ByOrderByCreatedAtDesc();
     Optional<KnowledgeDocument> findFirstByChecksumAndStatusOrderByCreatedAtDesc(
             String checksum, KnowledgeDocumentStatus status);
+    List<KnowledgeDocument> findTop100ByStatusInOrderByCreatedAtDesc(Collection<KnowledgeDocumentStatus> statuses);
 }

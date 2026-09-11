@@ -98,7 +98,7 @@ public class DocumentParserService {
         if (!text.isEmpty() && !text.toString().endsWith("\n\n")) text.append('\n');
     }
 
-    
+
     private ParsedDocument parseHtml(byte[] content, String declaredMimeType) throws Exception {
         Document document = Jsoup.parse(new ByteArrayInputStream(content), null, "");
         String title = document.title();

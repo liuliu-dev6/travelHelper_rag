@@ -126,3 +126,7 @@ knowledge:
     # 每分钟只扫描到期任务，每批最多处理2个；真正刷新周期由每个来源的策略决定。
     initial-delay-ms: 30000
     scan-interval-ms: 60000
+  graph-extraction:
+    enabled: ${KNOWLEDGE_GRAPH_EXTRACTION_ENABLED:true}
+    min-confidence: ${KNOWLEDGE_GRAPH_MIN_CONFIDENCE:0.72}
+    timeout-ms: ${KNOWLEDGE_GRAPH_EXTRACTION_TIMEOUT_MS:20000}
